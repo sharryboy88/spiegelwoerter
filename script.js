@@ -52,7 +52,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       .eq('name', playerName)
 
     if (data && data.length > 0) {
-      console.log("[Reconnect] Player found, rejoining room:", savedRoom)
       initUI()
       updatePlayerList()
     }
@@ -76,7 +75,6 @@ joinBtn.addEventListener('click', async () => {
     return
   }
 
-  console.log("[Join] Beigetreten als", playerName, "im Raum", room)
   initUI()
   updatePlayerList()
 })
@@ -88,31 +86,19 @@ function initUI() {
   waitingDiv.style.display = 'block'
   resetBtn.style.display = 'block'
 
-  // ✅ Realtime Listener korrekt platzieren
-  const channelName = 'room-' + room
-  console.log("[Realtime] Channel subscribed:", channelName)
-  supabase.channel(channelName)
+  supabase.channel('room-' + room)
     .on('postgres_changes', {
       event: '*',
       schema: 'public',
       table: 'rooms',
       filter: 'room=eq.' + room
-    }, payload => {
-      console.log("[Realtime Triggered]", payload)
-      updatePlayerList()
-    })
+    }, updatePlayerList)
     .subscribe()
 }
 
 async function updatePlayerList() {
-  const { data, error } = await supabase.from('rooms').select('*').eq('room', room)
-  if (error) {
-    console.error("[UpdatePlayerList] Fehler:", error)
-    return
-  }
+  const { data } = await supabase.from('rooms').select('*').eq('room', room)
   if (!data) return
-
-  console.log("[UpdatePlayerList] Aktuelle Spieler:", data.map(p => p.name))
 
   playersList.innerHTML = ''
   data.forEach(p => {
@@ -138,7 +124,22 @@ async function handleChoice(role) {
 
 async function checkIfBothReady() {
   const { data } = await supabase.from('rooms').select('*').eq('room', room)
-  if (data.length === 2 && data.every(p => p.role)) {
+  if (data.length === 2) {
+    if (data.every(p => p.role === 'bluff')) {
+      resultDiv.style.display = 'block'
+      resultDiv.innerHTML = `
+        <h2>🚫 Beide bluffen! Das ergibt keinen Sinn. 🚫</h2>
+        <p>Bitte entscheidet euch neu:</p>
+        <button id="reselectBtn">🔁 Zurück zur Auswahl 🔁</button>
+      `
+      document.getElementById('reselectBtn').onclick = async () => {
+        await supabase.from('rooms').update({ role: null }).eq('room', room)
+        resultDiv.style.display = 'none'
+        roleChoice.style.display = 'block'
+      }
+      return
+    }
+
     let sharedWord = data[0].word
     if (!sharedWord) {
       const sorted = [...data].sort((a, b) => a.name.localeCompare(b.name))
