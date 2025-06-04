@@ -67,7 +67,7 @@ joinBtn.addEventListener('click', async () => {
   localStorage.setItem('name', playerName)
 
   const { error } = await supabase.from('rooms').upsert({
-    room, name: playerName, role: null, last_active: nowISO()
+    room, name: playerName, role: null, last_active: nowISO(), word: null
   }, { onConflict: ['room', 'name'] })
 
   if (error) {
@@ -107,14 +107,23 @@ async function updatePlayerList() {
     playersList.appendChild(li)
   })
 
-  if (data.length === 2) {
+  if (data.length === 2 && data.every(p => p.role === null)) {
     waitingDiv.innerHTML = '<p>✅ Beide Spieler im Raum! Wähle deine Rolle...</p>'
-    roleChoice.style.display = 'block'
+    renderRoleChoice()
+    resultDiv.style.display = 'none'
   }
 }
 
-seeWordBtn.addEventListener('click', () => handleChoice('word'))
-bluffBtn.addEventListener('click', () => handleChoice('bluff'))
+function renderRoleChoice() {
+  roleChoice.style.display = 'block'
+  roleChoice.innerHTML = `
+    <p>Wähle deine Rolle:</p>
+    <button id="seeWordBtn">🟢 Ich will das Wort sehen</button>
+    <button id="bluffBtn">🟡 Ich bluffe</button>
+  `
+  document.getElementById('seeWordBtn').onclick = () => handleChoice('word')
+  document.getElementById('bluffBtn').onclick = () => handleChoice('bluff')
+}
 
 async function handleChoice(role) {
   await supabase.from('rooms').update({ role, last_active: nowISO() }).eq('room', room).eq('name', playerName)
@@ -125,17 +134,25 @@ async function handleChoice(role) {
 async function checkIfBothReady() {
   const { data } = await supabase.from('rooms').select('*').eq('room', room)
   if (data.length === 2) {
-    if (data.every(p => p.role === 'bluff')) {
+    if (data.every(p => p.role === null)) {
+      resultDiv.style.display = 'none'
+      renderRoleChoice()
+      return
+    }
+
+    const roles = data.map(p => p.role)
+    if (roles.every(r => r === 'bluff')) {
       resultDiv.style.display = 'block'
       resultDiv.innerHTML = `
-        <h2>🚫 Beide bluffen! Das ergibt keinen Sinn 🚫</h2>
+        <h2>🚫 Beide bluffen! Das ergibt keinen Sinn.</h2>
         <p>Bitte entscheidet euch neu:</p>
-        <button id="reselectBtn">🔁 Zurück zur Auswahl 🔁</button>
+        <button id="reselectBtn">🔁 Zurück zur Auswahl</button>
       `
       document.getElementById('reselectBtn').onclick = async () => {
-        await supabase.from('rooms').update({ role: null }).eq('room', room)
+        await supabase.from('rooms').update({ role: null, word: null }).eq('room', room)
         resultDiv.style.display = 'none'
-        setTimeout(updatePlayerList, 500)
+        roleChoice.style.display = 'none'
+        renderRoleChoice()
       }
       return
     }
@@ -158,6 +175,13 @@ async function checkIfBothReady() {
     resultDiv.innerHTML = me.role === 'word'
       ? `<h2>🔑 Dein Wort: ${sharedWord}</h2>`
       : `<h2>🤫 Du musst bluffen!</h2>`
+    resultDiv.innerHTML += `<br><button id="nextRoundBtn">🔄 Neue Runde starten</button>`
+    document.getElementById('nextRoundBtn').onclick = async () => {
+      await supabase.from('rooms').update({ role: null, word: null }).eq('room', room)
+      resultDiv.style.display = 'none'
+      roleChoice.style.display = 'none'
+      renderRoleChoice()
+    }
   } else {
     setTimeout(checkIfBothReady, 1000)
   }
