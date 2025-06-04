@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
 const SUPABASE_URL = 'https://mnsugeicwtixdenfncni.supabase.co'
@@ -13,24 +14,50 @@ const roleChoice = document.getElementById('roleChoice')
 const seeWordBtn = document.getElementById('seeWordBtn')
 const bluffBtn = document.getElementById('bluffBtn')
 const resultDiv = document.getElementById('result')
+const resetBtn = document.getElementById('resetBtn')
 
-let room = localStorage.getItem('room') || ''
-let playerName = localStorage.getItem('name') || ''
+let room = ''
+let playerName = ''
 
-const wordList = [ "Apfel", "Elefant", "Zahnbürste", "Weltraum", "Banane", "Rakete", "Pirat", "Regenbogen", "Schloss", "Giraffe",
-"Trommel", "Pizza", "Vulkan", "Polizei", "Hexe", "Drache", "Panda", "Strand", "Roboter", "Torte",
-"Flugzeug", "Sofa", "Kaktus", "Eis", "Bibliothek", "Frosch", "Handy", "Schlüssel", "Regen", "Schneemann",
-"Höhle", "Traktor", "Pinsel", "Löwe", "Geisterbahn", "Karotte", "Zahnarzt", "UFO", "Zebra", "Schaufel",
-"Würfel", "Tunnel", "Brille", "Pfanne", "Insel", "Koala", "Magnet", "Schatz", "Pinguin", "Boot",
-"Igel", "Krone", "Hammer", "Zauberer", "Schule", "Tintenfisch", "Tafel", "Gurke", "Radio", "Rucksack",
-"Mixer", "Schere", "Ananas", "Monster", "Schokolade", "Aquarium", "Trampolin", "Sandburg", "Vampir", "Seil",
-"Huhn", "Käse", "Robbe", "Glühbirne", "Mikroskop", "Melone", "Gitarre", "Becher", "Seestern", "Teleskop",
-"Bus", "Seife", "Schnecke", "Planet", "Teddybär", "Wolke", "Kleber", "Fernbedienung", "Pilz", "Pyramide",
-"Gletscher", "Eule", "Mumie", "Surfbrett" ]
+const wordList = ["Apfel", "Drache", "Pizza", "Rakete", "Insel", "Zug", "Elefant", "Polizei"]
 
-if (room && playerName) {
-  autoJoin()
+function nowISO() {
+  return new Date().toISOString()
 }
+
+window.addEventListener('beforeunload', async () => {
+  await cleanup()
+})
+
+resetBtn.addEventListener('click', async () => {
+  await cleanup()
+  location.reload()
+})
+
+async function cleanup() {
+  await supabase.from('rooms').delete().eq('room', room).eq('name', playerName)
+  localStorage.clear()
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  const savedRoom = localStorage.getItem('room')
+  const savedName = localStorage.getItem('name')
+  if (savedRoom && savedName) {
+    room = savedRoom
+    playerName = savedName
+
+    const { data } = await supabase.from('rooms')
+      .select('*')
+      .eq('room', room)
+      .eq('name', playerName)
+
+    if (data && data.length > 0) {
+      console.log("[Reconnect] Player found, rejoining room:", savedRoom)
+      initUI()
+      updatePlayerList()
+    }
+  }
+})
 
 joinBtn.addEventListener('click', async () => {
   room = roomInput.value.trim()
@@ -40,40 +67,52 @@ joinBtn.addEventListener('click', async () => {
   localStorage.setItem('room', room)
   localStorage.setItem('name', playerName)
 
-  await tryJoinRoom()
-  initUI()
-})
+  const { error } = await supabase.from('rooms').upsert({
+    room, name: playerName, role: null, last_active: nowISO()
+  }, { onConflict: ['room', 'name'] })
 
-async function tryJoinRoom() {
-  const { data: existing } = await supabase.from('rooms').select('*').eq('room', room).eq('name', playerName)
-  if (existing.length === 0) {
-    await supabase.from('rooms').insert({ room, name: playerName })
+  if (error) {
+    alert("Fehler beim Beitreten: " + error.message)
+    return
   }
-}
+
+  console.log("[Join] Beigetreten als", playerName, "im Raum", room)
+  initUI()
+  updatePlayerList()
+})
 
 function initUI() {
   joinBtn.style.display = 'none'
   roomInput.style.display = 'none'
   nameInput.style.display = 'none'
   waitingDiv.style.display = 'block'
-  updatePlayerList()
-}
+  resetBtn.style.display = 'block'
 
-function autoJoin() {
-  initUI()
-  updatePlayerList()
+  // ✅ Realtime Listener korrekt platzieren
+  const channelName = 'room-' + room
+  console.log("[Realtime] Channel subscribed:", channelName)
+  supabase.channel(channelName)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'rooms',
+      filter: 'room=eq.' + room
+    }, payload => {
+      console.log("[Realtime Triggered]", payload)
+      updatePlayerList()
+    })
+    .subscribe()
 }
-
-supabase
-  .channel('room-' + room)
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, payload => {
-    updatePlayerList()
-  })
-  .subscribe()
 
 async function updatePlayerList() {
   const { data, error } = await supabase.from('rooms').select('*').eq('room', room)
-  if (error) return console.error(error)
+  if (error) {
+    console.error("[UpdatePlayerList] Fehler:", error)
+    return
+  }
+  if (!data) return
+
+  console.log("[UpdatePlayerList] Aktuelle Spieler:", data.map(p => p.name))
 
   playersList.innerHTML = ''
   data.forEach(p => {
@@ -92,7 +131,7 @@ seeWordBtn.addEventListener('click', () => handleChoice('word'))
 bluffBtn.addEventListener('click', () => handleChoice('bluff'))
 
 async function handleChoice(role) {
-  await supabase.from('rooms').update({ role }).eq('room', room).eq('name', playerName)
+  await supabase.from('rooms').update({ role, last_active: nowISO() }).eq('room', room).eq('name', playerName)
   roleChoice.innerHTML = '<p>✅ Rolle gespeichert. Warte auf den anderen Spieler...</p>'
   checkIfBothReady()
 }
@@ -100,10 +139,24 @@ async function handleChoice(role) {
 async function checkIfBothReady() {
   const { data } = await supabase.from('rooms').select('*').eq('room', room)
   if (data.length === 2 && data.every(p => p.role)) {
-    const word = wordList[Math.floor(Math.random() * wordList.length)]
-    const me = data.find(p => p.name === playerName)
+    let sharedWord = data[0].word
+    if (!sharedWord) {
+      const sorted = [...data].sort((a, b) => a.name.localeCompare(b.name))
+      if (sorted[0].name === playerName) {
+        sharedWord = wordList[Math.floor(Math.random() * wordList.length)]
+        await supabase.from('rooms').update({ word: sharedWord }).eq('room', room)
+      } else {
+        setTimeout(checkIfBothReady, 1000)
+        return
+      }
+    }
+
+    const { data: confirmed } = await supabase.from('rooms').select('*').eq('room', room).eq('name', playerName)
+    const me = confirmed[0]
     resultDiv.style.display = 'block'
-    resultDiv.innerHTML = me.role === 'word' ? `<h2>🔑 Dein Wort: ${word}</h2>` : `<h2>🤫 Du musst bluffen!</h2>`
+    resultDiv.innerHTML = me.role === 'word'
+      ? `<h2>🔑 Dein Wort: ${sharedWord}</h2>`
+      : `<h2>🤫 Du musst bluffen!</h2>`
   } else {
     setTimeout(checkIfBothReady, 1000)
   }
