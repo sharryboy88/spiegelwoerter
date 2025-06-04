@@ -1,38 +1,37 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Imposter</title>
+  <title>The Imposter</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div id="app">
     <h1>🎭 The Imposter 🎭</h1>
-    <div class="card">
-      <input id="roomInput" placeholder="Raumcode eingeben" />
-      <input id="nameInput" placeholder="Dein Name" />
-      <button id="joinBtn">Beitreten</button>
-    </div>
+    <input id="roomInput" placeholder="Raumcode eingeben" />
+    <input id="nameInput" placeholder="Dein Name" />
+    <select id="categorySelect">
+      <option value="" disabled selected>Kategorie wählen</option>
+      <option value="Tiere">🐾 Tiere 🐾</option>
+      <option value="Gegenstände">🧰 Gegenstände 🧰</option>
+      <option value="Länder">🌍 Länder 🌍</option>
+      <option value="Flaggen">🚩 Flaggen 🚩</option>
+    </select>
+    <button id="joinBtn">Beitreten</button>
 
-    <div id="waiting" class="card" style="display:none;">
+    <div id="waiting" style="display:none;">
       <p>⏳ Warten auf Spieler 2... ⏳</p>
       <p><strong>Im Raum:</strong></p>
       <ul id="playersList"></ul>
     </div>
 
-    <div id="roleChoice" class="card" style="display:none;">
-      <p>Wähle deine Rolle:</p>
-      <button id="seeWordBtn" class="green">🟢 Ich will das Wort sehen</button>
-      <button id="bluffBtn" class="yellow">🟡 Ich bluffe</button>
-    </div>
-
-    <div id="result" class="card" style="display:none;"></div>
-
-    <div class="card">
-      <button id="resetBtn" style="display:none;" class="red">🔁 Zurück zur Startseite 🔁</button>
-    </div>
+    <div id="roleChoice" style="display:none;"></div>
+    <div id="result" style="display:none;"></div>
+    <button id="resetBtn" style="display:none;">❌ Raum verlassen ❌</button>
   </div>
+
   <script type="module" src="script.js"></script>
 </body>
 </html>
