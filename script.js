@@ -32,7 +32,11 @@ joinBtn.addEventListener('click', async () => {
   playerName = nameInput.value.trim()
   if (!room || !playerName) return alert('Bitte Raumcode und Namen eingeben.')
 
-  await supabase.from('rooms').insert({ room, name: playerName })
+  // Prüfe, ob dieser Spieler schon im Raum ist
+  const { data: existing } = await supabase.from('rooms').select('*').eq('room', room).eq('name', playerName)
+  if (existing.length === 0) {
+    await supabase.from('rooms').insert({ room, name: playerName })
+  }
 
   joinBtn.style.display = 'none'
   roomInput.style.display = 'none'
@@ -40,6 +44,9 @@ joinBtn.addEventListener('click', async () => {
   waitingDiv.style.display = 'block'
 
   updatePlayerList()
+
+  // Regelmäßiges Überprüfen falls Realtime nicht reagiert
+  setInterval(updatePlayerList, 2000)
 
   supabase
     .channel('room-' + room)
