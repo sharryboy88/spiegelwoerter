@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
 const SUPABASE_URL = 'https://mnsugeicwtixdenfncni.supabase.co'
@@ -8,18 +7,48 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 const joinBtn = document.getElementById('joinBtn')
 const roomInput = document.getElementById('roomInput')
 const nameInput = document.getElementById('nameInput')
+const categorySelect = document.getElementById('categorySelect')
 const waitingDiv = document.getElementById('waiting')
 const playersList = document.getElementById('playersList')
 const roleChoice = document.getElementById('roleChoice')
-const seeWordBtn = document.getElementById('seeWordBtn')
-const bluffBtn = document.getElementById('bluffBtn')
 const resultDiv = document.getElementById('result')
 const resetBtn = document.getElementById('resetBtn')
 
 let room = ''
 let playerName = ''
+let category = ''
 
-const wordList = ["Apfel", "Drache", "Pizza", "Rakete", "Insel", "Zug", "Elefant", "Polizei"]
+const wordCategories = {
+  Tiere: [
+    "Hund", "Katze", "Elefant", "Löwe", "Tiger", "Bär", "Pferd", "Affe", "Giraffe", "Zebra",
+    "Pinguin", "Frosch", "Krokodil", "Schlange", "Eule", "Fuchs", "Wolf", "Hase", "Maus", "Ratte",
+    "Igel", "Dachs", "Waschbär", "Känguru", "Koala", "Nilpferd", "Nashorn", "Möwe", "Papagei", "Taube",
+    "Schwan", "Ente", "Gans", "Storch", "Kranich", "Fisch", "Hai", "Delfin", "Wal", "Qualle",
+    "Seestern", "Krabbe", "Tintenfisch", "Ameise", "Biene", "Wespe", "Schmetterling", "Käfer", "Libelle", "Spinne"
+  ],
+  Gegenstände: [
+    "Tisch", "Stuhl", "Lampe", "Buch", "Laptop", "Handy", "Tastatur", "Maus", "Fernbedienung", "Fernseher",
+    "Sofa", "Bett", "Schrank", "Spiegel", "Teppich", "Bild", "Fenster", "Tür", "Kühlschrank", "Ofen",
+    "Herd", "Pfanne", "Topf", "Tasse", "Glas", "Teller", "Löffel", "Gabel", "Messer", "Kissen",
+    "Decke", "Schreibtisch", "Regal", "Uhr", "Radio", "Ventilator", "Heizung", "Toaster", "Mikrowelle", "Föhn",
+    "Waschmaschine", "Staubsauger", "Besen", "Mülleimer", "Batterie", "Kerze", "Lineal", "Stift", "Block", "Schere"
+  ],
+  Länder: [
+    "Deutschland", "Frankreich", "Spanien", "Italien", "Portugal", "Österreich", "Schweiz", "Niederlande", "Belgien", "Dänemark",
+    "Schweden", "Norwegen", "Finnland", "Polen", "Tschechien", "Ungarn", "Griechenland", "Türkei", "Russland", "Ukraine",
+    "USA", "Kanada", "Mexiko", "Brasilien", "Argentinien", "Chile", "Peru", "Kolumbien", "Venezuela", "Ägypten",
+    "Südafrika", "Nigeria", "Kenia", "China", "Japan", "Südkorea", "Indien", "Thailand", "Vietnam", "Indonesien",
+    "Australien", "Neuseeland", "Iran", "Irak", "Syrien", "Saudi-Arabien", "Pakistan", "Afghanistan", "Philippinen", "Malaysia"
+  ],
+  Flaggen: [
+    "🇩🇪", "🇯🇴", "🇫🇷", "🇪🇸", "🇮🇹", "🇵🇹", "🇦🇹", "🇨🇭", "🇳🇱", "🇧🇪", "🇩🇰",
+    "🇸🇪", "🇳🇴", "🇫🇮", "🇵🇱", "🇨🇿", "🇭🇺", "🇬🇷", "🇹🇷", "🇷🇺", "🇺🇦",
+    "🇺🇸", "🇨🇦", "🇲🇽", "🇧🇷", "🇦🇷", "🇨🇱", "🇵🇪", "🇨🇴", "🇻🇪", "🇪🇬",
+    "🇿🇦", "🇳🇬", "🇰🇪", "🇨🇳", "🇯🇵", "🇰🇷", "🇮🇳", "🇹🇭", "🇻🇳", "🇮🇩",
+    "🇦🇺", "🇳🇿", "🇮🇷", "🇮🇶", "🇸🇾", "🇸🇦", "🇵🇰", "🇦🇫", "🇵🇭", "🇲🇾"
+  ]
+}
+
 
 function nowISO() {
   return new Date().toISOString()
@@ -42,9 +71,11 @@ async function cleanup() {
 window.addEventListener('DOMContentLoaded', async () => {
   const savedRoom = localStorage.getItem('room')
   const savedName = localStorage.getItem('name')
-  if (savedRoom && savedName) {
+  const savedCategory = localStorage.getItem('category')
+  if (savedRoom && savedName && savedCategory) {
     room = savedRoom
     playerName = savedName
+    category = savedCategory
 
     const { data } = await supabase.from('rooms')
       .select('*')
@@ -61,10 +92,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 joinBtn.addEventListener('click', async () => {
   room = roomInput.value.trim()
   playerName = nameInput.value.trim()
-  if (!room || !playerName) return alert('Bitte Raumcode und Namen eingeben.')
+  category = categorySelect.value
+  if (!room || !playerName || !category) return alert('Bitte alles ausfüllen.')
 
   localStorage.setItem('room', room)
   localStorage.setItem('name', playerName)
+  localStorage.setItem('category', category)
 
   const { error } = await supabase.from('rooms').upsert({
     room, name: playerName, role: null, last_active: nowISO(), word: null
@@ -83,6 +116,7 @@ function initUI() {
   joinBtn.style.display = 'none'
   roomInput.style.display = 'none'
   nameInput.style.display = 'none'
+  categorySelect.style.display = 'none'
   waitingDiv.style.display = 'block'
   resetBtn.style.display = 'block'
 
@@ -161,7 +195,8 @@ async function checkIfBothReady() {
     if (!sharedWord) {
       const sorted = [...data].sort((a, b) => a.name.localeCompare(b.name))
       if (sorted[0].name === playerName) {
-        sharedWord = wordList[Math.floor(Math.random() * wordList.length)]
+        const wordPool = wordCategories[category] || []
+        sharedWord = wordPool[Math.floor(Math.random() * wordPool.length)]
         await supabase.from('rooms').update({ word: sharedWord }).eq('room', room)
       } else {
         setTimeout(checkIfBothReady, 1000)
