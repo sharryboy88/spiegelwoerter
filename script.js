@@ -14,8 +14,9 @@ const seeWordBtn = document.getElementById('seeWordBtn')
 const bluffBtn = document.getElementById('bluffBtn')
 const resultDiv = document.getElementById('result')
 
-let room = ''
-let playerName = ''
+let room = localStorage.getItem('room') || ''
+let playerName = localStorage.getItem('name') || ''
+
 const wordList = [ "Apfel", "Elefant", "Zahnbürste", "Weltraum", "Banane", "Rakete", "Pirat", "Regenbogen", "Schloss", "Giraffe",
 "Trommel", "Pizza", "Vulkan", "Polizei", "Hexe", "Drache", "Panda", "Strand", "Roboter", "Torte",
 "Flugzeug", "Sofa", "Kaktus", "Eis", "Bibliothek", "Frosch", "Handy", "Schlüssel", "Regen", "Schneemann",
@@ -27,32 +28,48 @@ const wordList = [ "Apfel", "Elefant", "Zahnbürste", "Weltraum", "Banane", "Rak
 "Bus", "Seife", "Schnecke", "Planet", "Teddybär", "Wolke", "Kleber", "Fernbedienung", "Pilz", "Pyramide",
 "Gletscher", "Eule", "Mumie", "Surfbrett" ]
 
+if (room && playerName) {
+  autoJoin()
+}
+
 joinBtn.addEventListener('click', async () => {
   room = roomInput.value.trim()
   playerName = nameInput.value.trim()
   if (!room || !playerName) return alert('Bitte Raumcode und Namen eingeben.')
 
-  // Prüfe, ob dieser Spieler schon im Raum ist
+  localStorage.setItem('room', room)
+  localStorage.setItem('name', playerName)
+
+  await tryJoinRoom()
+  initUI()
+})
+
+async function tryJoinRoom() {
   const { data: existing } = await supabase.from('rooms').select('*').eq('room', room).eq('name', playerName)
   if (existing.length === 0) {
     await supabase.from('rooms').insert({ room, name: playerName })
   }
+}
 
+function initUI() {
   joinBtn.style.display = 'none'
   roomInput.style.display = 'none'
   nameInput.style.display = 'none'
   waitingDiv.style.display = 'block'
-
   updatePlayerList()
+}
 
-  // Regelmäßiges Überprüfen falls Realtime nicht reagiert
-  setInterval(updatePlayerList, 2000)
+function autoJoin() {
+  initUI()
+  updatePlayerList()
+}
 
-  supabase
-    .channel('room-' + room)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, updatePlayerList)
-    .subscribe()
-})
+supabase
+  .channel('room-' + room)
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, payload => {
+    updatePlayerList()
+  })
+  .subscribe()
 
 async function updatePlayerList() {
   const { data, error } = await supabase.from('rooms').select('*').eq('room', room)
