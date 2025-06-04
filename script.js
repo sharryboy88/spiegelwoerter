@@ -128,14 +128,14 @@ async function checkIfBothReady() {
     if (data.every(p => p.role === 'bluff')) {
       resultDiv.style.display = 'block'
       resultDiv.innerHTML = `
-        <h2>🚫 Beide bluffen! Das ergibt keinen Sinn. 🚫</h2>
+        <h2>🚫 Beide bluffen! Das ergibt keinen Sinn 🚫</h2>
         <p>Bitte entscheidet euch neu:</p>
         <button id="reselectBtn">🔁 Zurück zur Auswahl 🔁</button>
       `
       document.getElementById('reselectBtn').onclick = async () => {
         await supabase.from('rooms').update({ role: null }).eq('room', room)
         resultDiv.style.display = 'none'
-        roleChoice.style.display = 'block'
+        setTimeout(updatePlayerList, 500)
       }
       return
     }
