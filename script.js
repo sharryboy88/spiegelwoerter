@@ -26,6 +26,13 @@ const wordCategories = {
     "Schwan", "Ente", "Gans", "Storch", "Kranich", "Fisch", "Hai", "Delfin", "Wal", "Qualle",
     "Seestern", "Krabbe", "Tintenfisch", "Ameise", "Biene", "Wespe", "Schmetterling", "Käfer", "Libelle", "Spinne"
   ],
+  Allgemein: [
+  "Abenteuer", "Anfang", "Ball", "Buch", "Chance", "Dschungel", "Erinnerung", "Fahrrad", "Familie", "Freund",
+  "Gedanke", "Haus", "Herbst", "Himmel", "Idee", "Insel", "Kamera", "Kerze", "Licht", "Liebe",
+  "Magie", "Mensch", "Musik", "Natur", "Nebel", "Nuss", "Ozean", "Paket", "Papier", "Reise",
+  "Riese", "Rose", "Sand", "Schatten", "Stern", "Straße", "Tag", "Tanz", "Tasse", "Traum",
+  "Tür", "Uhr", "Versteck", "Wald", "Wasser", "Welle", "Wind", "Wolke", "Wunder", "Zukunft"
+],
   Gegenstände: [
     "Tisch", "Stuhl", "Lampe", "Buch", "Laptop", "Handy", "Tastatur", "Maus", "Fernbedienung", "Fernseher",
     "Sofa", "Bett", "Schrank", "Spiegel", "Teppich", "Bild", "Fenster", "Tür", "Kühlschrank", "Ofen",
